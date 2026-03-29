@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手机维修预约</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 480px;
+            height: 90vh;
+            max-height: 800px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 头部 */
+        .header {
+            background: #374151;
+            padding: 16px 20px;
+            color: white;
+        }
+
+        .header h2 {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 13px;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .online-dot {
+            width: 6px;
+            height: 6px;
+            background: #9ca3af;
+            border-radius: 50%;
+        }
+
+        /* 聊天区域 */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 85%;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .message-content {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            line-height: 1.6;
+            font-size: 15px;
+            color: #374151;
+        }
+
+        .message.user .message-content {
+            background: #6b7280;
+            color: white;
+            border: none;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .message.user .message-time {
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* 等待提示 */
+        .waiting-indicator {
+            padding: 12px 16px;
+            background: #f3f4f6;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+            width: fit-content;
+        }
+
+        /* 卡顿提示 */
+        .lag-indicator {
+            padding: 12px 16px;
+            background: #fef2f2;
+            border-radius: 12px;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            font-size: 14px;
+            width: fit-content;
+        }
+
+        /* 输入区域 */
+        .input-area {
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            background: #f3f4f6;
+            border-radius: 6px;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: #374151;
+            background: #fff;
+        }
+
+        .message-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 10px 12px;
+            font-size: 15px;
+            outline: none;
+            resize: none;
+            max-height: 100px;
+            font-family: inherit;
+        }
+
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            background: #6b7280;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            background: #4b5563;
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 进度指示器 */
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: rgba(255,255,255,0.2);
+            width: 100%;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #6b7280;
+            transition: width 0.5s ease;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .chat-container {
+                height: 100vh;
+                max-height: none;
+                border-radius: 0;
+                border: none;
+            }
+            
+            body {
+                padding: 0;
+            }
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        
+        <div class="header">
+            <h2>维修预约系统</h2>
+            <p><span class="online-dot"></span>系统运行中</p>
+        </div>
+
+        <div class="chat-area" id="chatArea">
+            <!-- 消息将在这里动态生成 -->
+        </div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea class="message-input" id="messageInput" placeholder="请输入..." rows="1"></textarea>
+            </div>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 对话状态管理
+        const state = {
+            step: 0,
+            problem: null,
+            time: null,
+            frequency: null,
+            bookingTime: null,
+            isConfirming: false,
+            confirmField: null,
+            confirmOriginalValue: null,
+            usedConfirmations: [],
+            hasLagged: false
+        };
+
+        // 卡顿话术库
+        const lagPhrases = [
+            "系统响应延迟，请等待",
+            "连接不稳定，请稍候",
+            "数据处理中，请等待",
+            "网络延迟，请稍候"
+        ];
+
+        // 生成随机延迟 7-10秒
+        function getRandomDelay() {
+            return Math.floor(Math.random() * 3000) + 7000;
+        }
+
+        // 判断当前步骤是否需要确认（随机选择两个步骤进行确认）
+        function shouldConfirm(step) {
+            if (state.usedConfirmations.length >= 2) return false;
+            if (state.usedConfirmations.includes(step)) return false;
+            
+            // 随机决定是否确认（50%概率）
+            if (Math.random() < 0.5) {
+                state.usedConfirmations.push(step);
+                return true;
+            }
+            return false;
+        }
+
+        // 对话流程配置 - 冷冰冰版本
+        const dialogFlow = [
+            {
+                step: 0,
+                field: "problem",
+                ask: "手机出现了什么问题",
+                confirmAsk: "再次确认一下，手机出现了什么问题？"
+            },
+            {
+                step: 1,
+                field: "time",
+                ask: "故障什么时候出现的",
+                confirmAsk: "再次确认一下，故障什么时候出现的？"
+            },
+            {
+                step: 2,
+                field: "frequency",
+                ask: "故障发生的频率",
+                confirmAsk: "再次确认一下，故障发生的频率？"
+            },
+            {
+                step: 3,
+                field: "bookingTime",
+                ask: "预约时间是",
+                confirmAsk: "再次确认一下，预约时间是？"
+            }
+        ];
+
+        const chatArea = document.getElementById('chatArea');
+        const messageInput = document.getElementById('messageInput');
+        const progressFill = document.getElementById('progressFill');
+
+        // 初始化
+        window.onload = () => {
+            setTimeout(() => {
+                addSystemMessage("维修预约服务");
+                setTimeout(() => {
+                    askQuestion(0);
+                }, 1000);
+            }, 500);
+        };
+
+        // 添加系统消息
+        function addSystemMessage(text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `
+                <div style="flex: 1;">
+                    <div class="message-content" style="background: #f3f4f6; color: #6b7280; font-size: 13px;">${text}</div>
+                </div>
+            `;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // 添加客服消息
+        function addServiceMessage(text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `
+                <div style="flex: 1;">
+                    <div class="message-content">${text}</div>
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // 添加用户消息
+        function addUserMessage(text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user';
+            messageDiv.innerHTML = `
+                <div style="flex: 1;">
+                    <div class="message-content">${text}</div>
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // 显示等待提示
+        function showWaiting() {
+            const waitingDiv = document.createElement('div');
+            waitingDiv.className = 'message';
+            waitingDiv.id = 'waitingIndicator';
+            waitingDiv.innerHTML = `
+                <div style="flex: 1;">
+                    <div class="waiting-indicator">请稍后</div>
+                </div>
+            `;
+            chatArea.appendChild(waitingDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // 移除等待提示
+        function hideWaiting() {
+            const el = document.getElementById('waitingIndicator');
+            if (el) el.remove();
+        }
+
+        // 显示卡顿提示
+        function showLag() {
+            const lagDiv = document.createElement('div');
+            lagDiv.className = 'message';
+            lagDiv.id = 'lagIndicator';
+            const phrase = lagPhrases[Math.floor(Math.random() * lagPhrases.length)];
+            lagDiv.innerHTML = `
+                <div style="flex: 1;">
+                    <div class="lag-indicator">${phrase}</div>
+                </div>
+            `;
+            chatArea.appendChild(lagDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // 移除卡顿提示
+        function hideLag() {
+            const el = document.getElementById('lagIndicator');
+            if (el) el.remove();
+        }
+
+        // 提问
+        function askQuestion(step, isConfirm = false) {
+            const flow = dialogFlow[step];
+            const text = isConfirm ? flow.confirmAsk : flow.ask;
+
+            showWaiting();
+            
+            const delay = getRandomDelay();
+            
+            // 30%概率出现卡顿
+            const shouldLag = !state.hasLagged && Math.random() < 0.3;
+            
+            setTimeout(() => {
+                hideWaiting();
+                
+                if (shouldLag) {
+                    state.hasLagged = true;
+                    showLag();
+                    
+                    setTimeout(() => {
+                        hideLag();
+                        addServiceMessage(text);
+                    }, 3000);
+                } else {
+                    addServiceMessage(text);
+                }
+                
+                updateProgress(step);
+            }, delay);
+        }
+
+        // 发送消息
+        function sendMessage() {
+            const value = messageInput.value.trim();
+            if (!value) return;
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+
+            // 添加用户消息
+            addUserMessage(value);
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+
+            // 处理确认逻辑
+            if (state.isConfirming) {
+                // 正在确认中，保存答案并进入下一步
+                state[state.confirmField] = value;
+                state.isConfirming = false;
+                state.confirmField = null;
+                state.confirmOriginalValue = null;
+                
+                // 进入下一步
+                state.step++;
+                if (state.step < dialogFlow.length) {
+                    setTimeout(() => {
+                        askQuestion(state.step);
+                        sendBtn.disabled = false;
+                    }, 500);
+                } else {
+                    completeBooking();
+                }
+            } else {
+                // 正常流程
+                const currentFlow = dialogFlow[state.step];
+                state[currentFlow.field] = value;
+                
+                // 检查是否需要确认（且还没用过两次确认）
+                if (shouldConfirm(state.step)) {
+                    state.isConfirming = true;
+                    state.confirmField = currentFlow.field;
+                    state.confirmOriginalValue = value;
+                    
+                    setTimeout(() => {
+                        askQuestion(state.step, true);
+                        sendBtn.disabled = false;
+                    }, 500);
+                } else {
+                    // 直接进入下一步
+                    state.step++;
+                    if (state.step < dialogFlow.length) {
+                        setTimeout(() => {
+                            askQuestion(state.step);
+                            sendBtn.disabled = false;
+                        }, 500);
+                    } else {
+                        completeBooking();
+                    }
+                }
+            }
+        }
+
+        // 更新进度条
+        function updateProgress(step) {
+            const progress = (step / dialogFlow.length) * 100;
+            progressFill.style.width = progress + '%';
+        }
+
+        // 完成预约
+        function completeBooking() {
+            const code = generateCode();
+            
+            showWaiting();
+            
+            setTimeout(() => {
+                hideWaiting();
+                
+                // 第一条：预约已登记
+                addServiceMessage("预约已登记");
+                
+                // 第二条：凭证：xxxx（2秒后）
+                setTimeout(() => {
+                    addServiceMessage(`凭证：${code}`);
+                    
+                    // 第三条：保存凭证、到店出示（2秒后）
+                    setTimeout(() => {
+                        addServiceMessage("保存凭证、到店出示");
+                    }, 2000);
+                }, 2000);
+            }, getRandomDelay());
+        }
+
+        // 生成预约码 - 7位固定包含大写字母、小写字母和数字
+        function generateCode() {
+            const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const lowerChars = 'abcdefghijklmnopqrstuvwxyz';
+            const numChars = '0123456789';
+            const allChars = upperChars + lowerChars + numChars;
+    
+            let code = '';
+    
+            // 确保包含至少一个大写字母
+            code += upperChars[Math.floor(Math.random() * upperChars.length)];
+    
+            // 确保包含至少一个小写字母
+            code += lowerChars[Math.floor(Math.random() * lowerChars.length)];
+    
+            // 确保包含至少一个数字
+            code += numChars[Math.floor(Math.random() * numChars.length)];
+    
+            // 剩余4位随机从所有字符中选择
+            for (let i = 0; i < 4; i++) {
+                code += allChars[Math.floor(Math.random() * allChars.length)];
+            }
+    
+            // 打乱顺序，避免前3位固定是"大写+小写+数字"的模式
+            return code.split('').sort(() => Math.random() - 0.5).join('');
+        }
+       
+
+        // 获取当前时间
+        function getCurrentTime() {
+            const now = new Date();
+            return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        }
+
+        // 输入框自动高度
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        });
+
+        // 回车发送
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
